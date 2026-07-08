@@ -1,6 +1,13 @@
 """
-Pulls the last 30 days of Fireflies meetings and saves each as a JSON file
-in data/raw/. Idempotent: skips meetings already on disk.
+Pulls Fireflies meetings and saves each as a JSON file in data/raw/.
+
+Incremental: remembers the last successful run timestamp in data/.last_fetch
+and only asks Fireflies for meetings since then (minus a 2-day safety overlap).
+On the first run (no state file), backfills the last 30 days.
+
+To force a full 30-day backfill, delete data/.last_fetch and re-run.
+
+Idempotent: skips meetings whose JSON is already on disk.
 """
 import json
 import os
@@ -24,10 +31,28 @@ HEADERS = {
 RAW_DIR = Path("data/raw")
 RAW_DIR.mkdir(parents=True, exist_ok=True)
 
-# Date range: last 30 days
-TO_DATE = datetime.now(timezone.utc)
-FROM_DATE = TO_DATE - timedelta(days=30)
+STATE_FILE = Path("data/.last_fetch")
+OVERLAP_DAYS = 2          # re-scan this many days before last_fetch, in case
+                          # a recent meeting's transcript finalised late
+BACKFILL_DAYS = 30        # used only when STATE_FILE doesn't exist
 
+# --- Date window ---------------------------------------------------------
+TO_DATE = datetime.now(timezone.utc)
+
+if STATE_FILE.exists():
+    try:
+        last = datetime.fromisoformat(STATE_FILE.read_text().strip())
+        FROM_DATE = last - timedelta(days=OVERLAP_DAYS)
+        MODE = f"incremental (since {last.date()}, with {OVERLAP_DAYS}-day overlap)"
+    except Exception as e:
+        print(f"  warning: could not read {STATE_FILE} ({e}); doing full backfill")
+        FROM_DATE = TO_DATE - timedelta(days=BACKFILL_DAYS)
+        MODE = f"backfill (last {BACKFILL_DAYS} days)"
+else:
+    FROM_DATE = TO_DATE - timedelta(days=BACKFILL_DAYS)
+    MODE = f"first run / backfill (last {BACKFILL_DAYS} days)"
+
+# --- GraphQL queries -----------------------------------------------------
 LIST_QUERY = """
 query Transcripts($fromDate: DateTime, $toDate: DateTime, $limit: Int, $skip: Int) {
   transcripts(fromDate: $fromDate, toDate: $toDate, limit: $limit, skip: $skip) {
@@ -70,6 +95,12 @@ query Transcript($id: String!) {
 }
 """
 
+def parse_meeting_date(m: dict) -> datetime:
+    """Parse a meeting's date field (epoch ms or ISO string) to a UTC datetime."""
+    d = m.get("date")
+    if isinstance(d, (int, float)):
+        return datetime.fromtimestamp(d / 1000, tz=timezone.utc)
+    return datetime.fromisoformat(str(d).replace("Z", "+00:00"))
 
 def gql(query: str, variables: dict) -> dict:
     r = requests.post(API_URL, headers=HEADERS,
@@ -107,11 +138,13 @@ def fetch_detail(meeting_id: str) -> dict:
 
 
 def main():
+    print(f"Mode: {MODE}")
     print(f"Fetching meetings from {FROM_DATE.date()} to {TO_DATE.date()}...")
     meetings = list_meetings()
     print(f"Found {len(meetings)} meetings in the window.\n")
 
     fetched, skipped, failed = 0, 0, 0
+    failed_dates = []                              # NEW
     for m in meetings:
         out_path = RAW_DIR / f"{m['id']}.json"
         if out_path.exists():
@@ -126,10 +159,29 @@ def main():
             time.sleep(0.5)
         except Exception as e:
             failed += 1
+            # Track when this failed meeting occurred, so we can hold the
+            # watermark back and retry it next run.
+            try:                                                # NEW
+                failed_dates.append(parse_meeting_date(m))      # NEW
+            except Exception:                                   # NEW
+                pass                                            # NEW
             print(f"  FAILED {m['id']}: {e}")
 
     print(f"\nDone. fetched={fetched}, skipped(existing)={skipped}, failed={failed}")
 
+    # Advance the watermark only up to the earliest failure. If any meeting
+    # failed, we cap the watermark at that meeting's date so the next run
+    # re-lists it. If nothing failed, we advance fully to TO_DATE.
+    if failed_dates:
+        earliest_failure = min(failed_dates)
+        # Save watermark 1 day before earliest failure, for safety margin
+        new_watermark = earliest_failure - timedelta(days=1)
+        STATE_FILE.write_text(new_watermark.isoformat())
+        print(f"Saved watermark to {STATE_FILE} ({new_watermark.isoformat()})")
+        print(f"  (capped at earliest failure so {failed} failed meeting(s) get retried)")
+    else:
+        STATE_FILE.write_text(TO_DATE.isoformat())
+        print(f"Saved watermark to {STATE_FILE} ({TO_DATE.isoformat()})")
 
 if __name__ == "__main__":
     main()
