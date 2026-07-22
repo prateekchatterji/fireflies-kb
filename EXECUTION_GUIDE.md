@@ -1,6 +1,6 @@
 # Execution Guide
 
-Copy-pasteable command sequences for every workflow this project supports. For understanding *how* the project works, see `PROJECT_KNOWLEDGE_BASE.md`. This doc is about *what to type when*.
+Copy-pasteable command sequences for every workflow this project supports. For understanding _how_ the project works, see `PROJECT_KNOWLEDGE_BASE.md`. This doc is about _what to type when_.
 
 **All commands assume Git Bash on Windows.**
 
@@ -193,6 +193,7 @@ chmod +x scripts/refresh.sh
 ```
 
 **Rules of thumb for what to script:**
+
 - If you've typed the same sequence 3+ times, script it.
 - If not, don't. Premature scripting creates a graveyard of `run_v2_final.sh` files nobody remembers.
 - Give scripts descriptive names (`refresh.sh`, `backfill.sh`, `retry_failures.sh`) — not `run.sh`.
@@ -212,14 +213,14 @@ python cli.py refresh
 
 ## Quick reference table
 
-| I want to... | Section |
-|---|---|
-| Pull latest meetings and re-bundle | §1 |
-| Re-bundle after editing `priority_people.txt` | §2 |
-| Retry meetings that failed last run | §3 |
-| Fetch everything from scratch (30 days) | §4 |
-| Fetch older than 30 days | §5 |
-| Check the health of the project | §6 |
-| Blow away all data and start over | §7 |
-| Commit and push changes | §8 |
-| Automate a routine sequence | §9 |
+| I want to...                                  | Section |
+| --------------------------------------------- | ------- |
+| Pull latest meetings and re-bundle            | §1      |
+| Re-bundle after editing `priority_people.txt` | §2      |
+| Retry meetings that failed last run           | §3      |
+| Fetch everything from scratch (30 days)       | §4      |
+| Fetch older than 30 days                      | §5      |
+| Check the health of the project               | §6      |
+| Blow away all data and start over             | §7      |
+| Commit and push changes                       | §8      |
+| Automate a routine sequence                   | §9      |
