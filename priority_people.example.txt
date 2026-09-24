@@ -1,0 +1,4 @@
+# One email per line. Meetings with any of these participants become priority.
+# Copy this file to priority_people.txt and fill in real emails.
+alice@example.com
+bob@example.com
