@@ -26,16 +26,17 @@ Fireflies API  →  data/raw/*.json  →  data/bundles/*.md  →  Claude Project
 
 ## 2. Project layout
 
-> **You're on Windows, using Git Bash.** Two things to remember:
+> **Windows + Git Bash notes.** Two things to remember:
 >
-> - In Git Bash, `C:\Users\prate\dev\fireflies-kb` is written as `/c/Users/prate/dev/fireflies-kb` (forward slashes, drive letter becomes `/c/`).
+> - In Git Bash, `C:\path\to\fireflies-kb` is written as `/c/path/to/fireflies-kb` (forward slashes, drive letter becomes `/c/`).
 > - To activate the Python venv on Windows you use `.venv/Scripts/activate`, **not** `.venv/bin/activate` (that's the Mac/Linux path — most tutorials online show that one).
 
 ```
-fireflies-kb/                       ← C:\Users\prate\dev\fireflies-kb
+fireflies-kb/
 ├── .env                            ← secret: your Fireflies API key. NEVER commit.
 ├── .gitignore                      ← tells git to ignore .env, data/, .venv/ etc.
-├── priority_people.txt             ← list of emails that mark a meeting as "important"
+├── priority_people.example.txt     ← template committed to the repo
+├── priority_people.txt             ← your real list; gitignored, stays local
 ├── requirements.txt                ← Python libraries this project needs
 ├── fetch_meetings.py               ← script 1: pulls meetings from Fireflies
 ├── bundle_priority_meetings.py     ← script 2: filters + renders to Markdown
@@ -51,34 +52,24 @@ fireflies-kb/                       ← C:\Users\prate\dev\fireflies-kb
 
 ## 3. How each piece works
 
-### `priority_people.txt`
+### `priority_people.txt` (and `priority_people.example.txt`)
 
-A plain text file. One email per line. Lines starting with `#` are comments and ignored. A meeting is "priority" if **any** of its participants matches **any** email here. Case-insensitive.
+`priority_people.example.txt` is committed to the repo and shows the format. On first setup you copy it to `priority_people.txt` and fill in real emails. The real file is gitignored so it never gets committed.
 
-Current contents:
+Both files are plain text. One email per line. Lines starting with `#` are comments and ignored. A meeting is "priority" if **any** of its participants matches **any** email in the file. Case-insensitive.
 
-```
-avni@highschoolmoms.com
-kanchan@gide.ai
-swati@gide.ai
-```
-
-Edit this file freely — add or remove emails as priorities change.
+Edit `priority_people.txt` freely — add or remove emails as priorities change.
 
 ### `.env`
-
 A plain text file that holds your secret API key. Format:
-
 ```
 FIREFLIES_API_KEY=your-key-here
 ```
-
 Never share, never commit to git. `.gitignore` already excludes it.
 
-If you ever leak this key (e.g. paste it in a chat), regenerate it in Fireflies: **Settings → Developer Settings → regenerate**.
+If the key ever leaks (e.g. pasted in a chat), regenerate it in Fireflies: **Settings → Developer Settings → regenerate**.
 
 ### `fetch_meetings.py`
-
 - Reads `FIREFLIES_API_KEY` from `.env`.
 - Decides its date window: if `data/.last_fetch` exists, it fetches from that timestamp minus a 2-day overlap; otherwise it backfills the last 30 days.
 - Asks Fireflies' GraphQL API for the list of transcripts in that window, paging 25 at a time.
@@ -89,7 +80,6 @@ If you ever leak this key (e.g. paste it in a chat), regenerate it in Fireflies:
 - Uses a small helper `parse_meeting_date()` to normalize Fireflies' date fields (which come as either epoch milliseconds or ISO strings).
 
 ### `bundle_priority_meetings.py`
-
 - Reads `priority_people.txt`.
 - Walks every `.json` in `data/raw/`.
 - Keeps meetings whose participant list overlaps with priority people.
@@ -105,66 +95,52 @@ If you ever leak this key (e.g. paste it in a chat), regenerate it in Fireflies:
 You only do this once on a new computer.
 
 ### 4a. Install Python 3
-
-Check if it's already there:
-
 ```bash
 python --version
 ```
+If you see `Python 3.10.x` or higher, you're set. Otherwise install from python.org or via Homebrew (`brew install python`).
 
-If you see something like `Python 3.10.x` or higher, you're set. Otherwise install from python.org or via Homebrew (`brew install python`).
-
-### 4b. Get the project files into a folder
-
-Put all five files (`fetch_meetings.py`, `bundle_priority_meetings.py`, `priority_people.txt`, `requirements.txt`, `.env`) in a single folder. Open Git Bash and `cd` into it:
-
+### 4b. Clone the repo
 ```bash
-cd /c/Users/prate/dev/fireflies-kb
+git clone https://github.com/prateekchatterji/fireflies-kb.git
+cd fireflies-kb
 ```
 
 ### 4c. Create a virtual environment
-
-A "venv" is a sealed sandbox of Python libraries for this project — keeps it from clashing with anything else on your machine.
-
 ```bash
 python -m venv .venv
 ```
-
 This creates a hidden `.venv/` folder. You only do this once.
 
 ### 4d. Activate the venv
-
 **Every time you open a new Git Bash window to work on this project, run:**
-
 ```bash
 source .venv/Scripts/activate
 ```
+Your prompt gets a `(.venv)` prefix. That's how you know it's active.
 
-Your prompt will get a `(.venv)` prefix. That's how you know it's active.
-
-> ⚠️ On Windows the path is `.venv/Scripts/activate`. On Mac/Linux it would be `.venv/bin/activate`. Easy thing to trip on.
+> ⚠️ On Windows the path is `.venv/Scripts/activate`. On Mac/Linux it would be `.venv/bin/activate`.
 
 To leave the venv later: `deactivate`.
 
 ### 4e. Install dependencies
-
 With the venv active:
-
 ```bash
 pip install -r requirements.txt
 ```
-
-This installs `requests` (for HTTP calls) and `python-dotenv` (for reading `.env`).
+This installs `requests` and `python-dotenv`.
 
 ### 4f. Create `.env`
-
-If you don't have one yet:
-
 ```bash
 echo "FIREFLIES_API_KEY=paste-your-key-here" > .env
 ```
-
 Then edit `.env` and replace `paste-your-key-here` with your actual Fireflies API key (from Fireflies → Settings → Developer Settings).
+
+### 4g. Create your `priority_people.txt`
+```bash
+cp priority_people.example.txt priority_people.txt
+```
+Then edit `priority_people.txt` to list the real emails you care about, one per line.
 
 ---
 
@@ -174,7 +150,7 @@ Every time you want to refresh your Claude Project with new meetings:
 
 ```bash
 # 1. Open Git Bash and go to the project folder
-cd /c/Users/prate/dev/fireflies-kb
+cd /c/path/to/fireflies-kb
 
 # 2. Activate the venv (note: Scripts/ on Windows, not bin/)
 source .venv/Scripts/activate
@@ -183,7 +159,7 @@ source .venv/Scripts/activate
 which python                    # should point inside .venv/
 pip list | grep -E "requests|dotenv"   # should show both
 
-# 4. Pull new meetings from Fireflies (last 30 days)
+# 4. Pull new meetings from Fireflies
 python fetch_meetings.py
 
 # 5. Re-bundle the priority meetings to Markdown
@@ -194,12 +170,9 @@ ls -lh data/bundles/ | head
 ```
 
 Then:
-
 - Open your Claude Project in the browser.
 - Drag the new `.md` files from `data/bundles/` into the project knowledge.
 - (If updating files that already exist there, delete the old version first.)
-
-The whole run usually takes a minute or two, depending on how many new meetings.
 
 ---
 
@@ -220,7 +193,7 @@ ls data/bundles/             # which markdown bundles exist
 ls -lt data/bundles/ | head -6
 
 # Read one bundle in the terminal
-cat data/bundles/2025-11-15_some-meeting_abc12345.md
+cat data/bundles/<filename>.md
 
 # Quickly check your .env (careful — it shows the key)
 cat .env
@@ -243,18 +216,16 @@ deactivate
 ## 7. Common situations & how to handle them
 
 **"I added someone to `priority_people.txt`. Do I need to re-fetch?"**
-No. The raw JSONs already contain every meeting from the last 30 days regardless of priority. Just re-run `python bundle_priority_meetings.py` and the new person's meetings will appear in `data/bundles/`.
+No. The raw JSONs already contain every meeting from the last 30 days regardless of priority. Just re-run `python bundle_priority_meetings.py`.
 
 **"I want meetings older than 30 days."**
-Edit `fetch_meetings.py`, find the line `FROM_DATE = TO_DATE - timedelta(days=30)`, change `30` to whatever you need (e.g. `90`). Re-run `fetch_meetings.py`. Note: Fireflies retains transcripts based on your plan; very old ones may not be available.
+Edit `fetch_meetings.py`, find `BACKFILL_DAYS = 30`, change to whatever you need. Re-run `fetch_meetings.py`. Note: Fireflies retains transcripts based on your plan; very old ones may not be available.
 
 **"I want to delete old bundles before regenerating."**
-
 ```bash
 rm data/bundles/*.md
 python bundle_priority_meetings.py
 ```
-
 Safe to do — the raw JSONs in `data/raw/` are untouched, and bundling re-creates everything.
 
 **"The script errored with `Missing FIREFLIES_API_KEY in .env`."**
@@ -264,38 +235,36 @@ Either `.env` doesn't exist in the current folder, or the line inside it is malf
 Your API key is wrong, expired, or rotated. Get a fresh one from Fireflies and update `.env`.
 
 **"The script says `command not found: python`."**
-Python isn't installed, or your venv isn't activated. Run `source .venv/bin/activate` first.
+Python isn't installed, or your venv isn't activated. Run `source .venv/Scripts/activate` first.
 
 **"It says `ModuleNotFoundError: No module named 'requests'`."**
 The venv isn't active, or dependencies weren't installed. Run `source .venv/Scripts/activate && pip install -r requirements.txt`.
 
 **"I accidentally committed `.env` to git."**
-Rotate the key in Fireflies immediately. Then remove the file from git history (this is non-trivial; ask Claude for help with `git filter-repo` when it happens).
+Rotate the key in Fireflies immediately. Then remove the file from git history using `git filter-repo` (non-trivial — worth reading its docs before running).
 
 **"Some meetings failed to fetch and I want them retried."**
-Normal handling: the watermark cap will retry them on the next run automatically. If you want to force it right away, delete the watermark and run again:
-
+The watermark cap retries them automatically on the next run. If you want to force it right away:
 ```bash
 rm data/.last_fetch
 python fetch_meetings.py
 ```
-
 Existing meetings are still skipped (idempotent), so this only fetches the missing ones.
 
 **"My laptop went to sleep in the middle of a long fetch."**
 Two safeguards:
-
 1. Failed meetings will be retried on the next run (see above).
-2. To prevent it happening: before a long backfill, plug in the charger and set Windows Settings → System → Power → "when plugged in, PC goes to sleep after" → **Never**. Set it back afterward.
+2. To prevent it: before a long backfill, plug in the charger and set Windows Settings → System → Power → "when plugged in, PC goes to sleep after" → **Never**. Set it back afterward.
 
 ---
 
 ## 8. Things to know about the data
 
-- **Participant emails**: matching is by exact email (lowercased). If a colleague joined under an alias or a different address, they'll be missed. Spot-check by opening a raw JSON: `cat data/raw/<some-id>.json | head -50`.
-- **Transcript size**: full transcripts can be long. If you upload many bundles to a Claude Project, you may hit the project knowledge size cap. If that happens, consider a stripped-down bundler that omits the `## Transcript` section and keeps only the summary.
-- **Recurring meetings**: each occurrence is its own meeting in Fireflies, so a weekly 1:1 becomes one bundle per week. That's intentional.
-- **Idempotency**: `fetch_meetings.py` skips meetings already on disk. If a meeting's transcript was updated _after_ you first fetched it (rare), your local copy is stale. To force a refresh of one meeting: `rm data/raw/<id>.json` and re-run.
+- **Participant emails**: matching is by exact email (lowercased). If a colleague joined under an alias, they'll be missed. Spot-check by opening a raw JSON.
+- **Transcript sensitivity**: transcripts can contain sensitive operational content — names, discussions, and sometimes credentials mentioned aloud in meetings. This is why `data/` is gitignored. **Do not remove `data/` from `.gitignore`**, and do not attach raw JSONs or bundles to public issues, gists, or forum posts.
+- **Transcript size**: full transcripts can be long. If you upload many bundles to a Claude Project you may hit the project knowledge cap. If that happens, consider a stripped-down bundler that omits the transcript and keeps only the summary.
+- **Recurring meetings**: each occurrence is its own meeting in Fireflies, so a weekly 1:1 becomes one bundle per week. Intentional.
+- **Idempotency**: `fetch_meetings.py` skips meetings already on disk. If a meeting's transcript was updated after you first fetched it, your local copy is stale. To force a refresh: `rm data/raw/<id>.json` and re-run.
 
 ---
 
@@ -307,20 +276,16 @@ Two safeguards:
 2. **Detail query** — one per meeting _that isn't already on disk_. Deduplicated by the `if out_path.exists(): skipped += 1; continue` check.
 
 ### How the watermark works
-
 On startup the script checks for `data/.last_fetch`:
-
 - **If it exists**, sets `FROM_DATE = last_fetch - 2 days` (the 2-day overlap catches any meeting whose transcript finalized late).
 - **If not**, backfills the last 30 days (first-run behaviour).
 
-At the end of a successful run, the script writes the current time to `data/.last_fetch` as the new watermark. This means a daily run lists only ~3 days of meetings instead of 30 — roughly a **10× reduction** in list calls after the first run.
+At the end of a successful run, the script writes the current time to `data/.last_fetch` as the new watermark. A daily run then lists only ~3 days of meetings instead of 30 — roughly a **10× reduction** in list calls after the first run.
 
 ### Failure handling
+If any detail fetch fails during a run (network hiccup, laptop sleep, API blip), the watermark is capped at the earliest failed meeting's date minus 1 day of safety margin. Failed meetings fall inside the next run's window and get retried.
 
-If any detail fetch fails during a run (network hiccup, laptop sleep, API blip), the watermark is **not** advanced all the way to now. Instead, it's capped at the earliest failed meeting's date, minus 1 day of safety margin. This guarantees failed meetings fall inside the next run's window and get retried.
-
-Output on a run with failures looks like:
-
+Output on a run with failures:
 ```
 Done. fetched=42, skipped(existing)=100, failed=3
 Saved watermark to data\.last_fetch (2026-06-25T00:00:00+00:00)
@@ -328,74 +293,64 @@ Saved watermark to data\.last_fetch (2026-06-25T00:00:00+00:00)
 ```
 
 ### Manual controls
-
 - **Force a full 30-day backfill**: `rm data/.last_fetch && python fetch_meetings.py`.
 - **Adjust the safety overlap**: edit `OVERLAP_DAYS = 2` at the top of the script.
 - **Adjust first-run window**: edit `BACKFILL_DAYS = 30`.
 
-### Other levers (not implemented — for future consideration)
-
-- **Slow down further**: increase `time.sleep(0.5)` between detail fetches to be even gentler on rate limits.
-- **Cap per run**: add `if fetched >= 50: break` inside the loop to stop after N new meetings — useful if a backfill is huge.
-- **Pre-filter by participants**: the list query already returns `participants`, so you could skip the detail call for non-priority meetings. Saves the most expensive calls. Trade-off: you lose the option to re-bundle later for a new priority person without re-fetching.
+### Other levers (not implemented — future consideration)
+- **Slow down further**: increase `time.sleep(0.5)` between detail fetches.
+- **Cap per run**: add `if fetched >= 50: break` inside the loop.
+- **Pre-filter by participants**: skip the detail call for non-priority meetings. Saves the most expensive calls. Trade-off: losing the option to re-bundle for a new priority person without re-fetching.
 
 ---
 
 ## 10. Working with bundles — local & low-cost options
 
-You don't need a frontier model to do useful things with these meeting bundles. The transcripts are bounded, the questions are usually narrow (find a commitment, summarize a thread, list action items for X), and small local models handle that well.
+You don't need a frontier model to do useful things with these meeting bundles. The transcripts are bounded, the questions are usually narrow, and small local models handle that well.
 
 ### Option A — Ollama (fully local, free)
+[Ollama](https://ollama.com) runs LLMs on your own machine. Windows installer, background service, local API on `localhost:11434`.
 
-[Ollama](https://ollama.com) is the easiest way to run an LLM on your own machine. Windows installer, runs as a background service, exposes a local API on `localhost:11434`.
+Recommended starter models:
+- **`llama3.1:8b`** — good general-purpose, ~5 GB RAM
+- **`qwen2.5:7b`** — strong at structured extraction, ~5 GB RAM
+- **`phi3.5`** — smaller and faster, ~2 GB RAM
 
-Recommended starter models (all free, all run on consumer hardware):
+A typical flow: loop over `data/bundles/*.md`, send each to Ollama with an extraction prompt, write results to `data/digests/`.
 
-- **`llama3.1:8b`** — good general-purpose model, ~5 GB RAM
-- **`qwen2.5:7b`** — strong at structured extraction (action items, summaries)
-- **`phi3.5`** — smaller and faster, ~2 GB RAM, surprisingly capable
+### Option B — Cheap hosted APIs
+- **Groq** — Llama/Qwen at very high speed; generous free tier.
+- **DeepSeek API** — extremely cheap, strong quality.
+- **Claude Haiku** — Anthropic's small model; cheap and good at extraction.
+- **OpenRouter** — single API that routes to many providers.
 
-A typical flow: write a small Python script that loops over `data/bundles/*.md`, sends each to Ollama with a prompt like _"extract action items assigned to Avni"_, and writes results to `data/digests/`.
-
-This is exactly what the `digests/` folder is reserved for — see §11.
-
-### Option B — Cheap hosted APIs (when local is too slow)
-
-If a local model is too slow or quality isn't enough, these are dramatically cheaper than Claude Opus/Sonnet while still being useful:
-
-- **Groq** — runs Llama and Qwen models at very high speed; generous free tier.
-- **DeepSeek API** — extremely cheap (cents per million tokens), strong quality.
-- **Claude Haiku** — Anthropic's own small model; cheap and good at extraction tasks.
-- **OpenRouter** — single API that routes to many providers; lets you A/B models easily.
-
-### Option C — Claude Code (what you already have)
-
-Since you mentioned you can run Claude Code: it's overkill for routine extraction over bundles (and the cost adds up), but it's useful for _one-off_ heavier asks — e.g. "read all bundles from the last month and draft a board update." Use it sparingly for high-leverage work, not for routine digesting.
+### Option C — Claude Code
+Useful for _one-off_ heavier asks (e.g. "read all bundles from the last month and draft a report"). Overkill for routine extraction.
 
 ### Recommended starting point
-
 1. Install Ollama, pull `qwen2.5:7b`.
-2. Write a small `make_digests.py` that processes bundles → digests using Ollama.
-3. Only escalate to a hosted API or Claude Code if the local model falls short on specific tasks.
+2. Write a small `make_digests.py` that processes bundles → digests via Ollama.
+3. Escalate to hosted API or Claude Code only if the local model falls short.
 
 ---
 
 ## 11. The `digests/` folder
 
-Currently empty and unreferenced by any script. It's reserved for **derived outputs** built on top of bundles — things you'd run periodically and want to keep around. Examples:
+Currently empty and unreferenced by any script. Reserved for **derived outputs** built on top of bundles — things you'd run periodically and want to keep around. Examples:
 
 - `2026-W25_weekly-rollup.md` — one-paragraph summary of every priority meeting that week.
-- `action-items_avni.md` — running list of commitments involving Avni, extracted from all her meetings.
-- `topics_admissions.md` — every mention of "admissions" across bundles, with timestamps and links back to source bundle files.
+- `action-items_<person>.md` — running list of commitments involving a specific person.
+- `topics_<topic>.md` — every mention of a topic across bundles, with timestamps and back-references.
 
-These are the natural next scripts to write. Each digest script is small: read N bundles, call an LLM with an extraction prompt, write a Markdown file. The bundles are the source of truth; digests are disposable and can be regenerated any time.
+Each digest script is small: read N bundles, call an LLM with an extraction prompt, write a Markdown file. Bundles are the source of truth; digests are disposable and can be regenerated any time.
 
 ---
 
 ## 12. Security checklist
 
-- [ ] `.env` is in `.gitignore` (it is — verified).
-- [ ] `data/` is in `.gitignore` (it is — meetings can contain sensitive content).
+- [x] `.env` is in `.gitignore`.
+- [x] `data/` is in `.gitignore` — transcripts contain sensitive content.
+- [x] `priority_people.txt` is in `.gitignore`; `priority_people.example.txt` is committed as a template.
 - [ ] API key has never been pasted into a chat, document, or screenshot.
 - [ ] If the key ever leaks, rotate it within minutes.
 
@@ -403,42 +358,25 @@ These are the natural next scripts to write. Each digest script is small: read N
 
 ## 13. Version control (git + GitHub)
 
-This project is tracked in git and hosted on GitHub as a **private** repository:
-**https://github.com/prateekchatterji/fireflies-kb**
-
-### Why private matters
-
-The repo intentionally excludes `.env` (API key) and `data/` (meeting content) via `.gitignore`. But `priority_people.txt` contains colleagues' email addresses, and code comments may reference clients or internal context. Keep the repo private.
+Repository: **https://github.com/prateekchatterji/fireflies-kb**
 
 ### Everyday workflow
-
 ```bash
-# See what you've changed
 git status
-git --no-pager diff <filename>       # skip the pager for short diffs
-
-# Stage and commit
-git add <filename>                   # or: git add . for everything
+git --no-pager diff <filename>
+git add <filename>
 git commit -m "type: short summary"
-
-# Push to GitHub
 git push
 ```
 
-### Commit message convention
-
-Use short, imperative type-prefixed messages (Conventional Commits):
-
-- `fix:` — bug fixes (e.g. `fix: hold watermark at earliest failure`)
-- `feat:` — new features (e.g. `feat: add metadata export utility`)
-- `docs:` — documentation only (e.g. `docs: document watermark behaviour`)
+### Commit message convention (Conventional Commits)
+- `fix:` — bug fixes
+- `feat:` — new features
+- `docs:` — documentation only
 - `refactor:` — internal restructuring, no behaviour change
 - `chore:` — housekeeping (config, deps, formatting)
 
-Long-form multi-line commits are welcome when the _why_ isn't obvious from the diff.
-
-### Undo commands you'll actually need
-
+### Undo commands
 ```bash
 git checkout -- <file>               # discard uncommitted changes to a file
 git restore <file>                   # same thing, modern syntax
@@ -447,22 +385,15 @@ git revert <hash>                    # create a new commit that undoes an old on
 ```
 
 ### The doc-drift habit
-
-**Update `PROJECT_KNOWLEDGE_BASE.md` in the same commit as any code change that affects behaviour or workflow.** Documentation that lags behind code becomes untrustworthy. If you catch yourself thinking "I'll update the doc later," add it to the same commit now instead.
-
-Suggested split:
-
-- Code-only change → one commit, `fix:` or `feat:`.
-- Code + doc update → two separate commits pushed together: one `feat:`/`fix:`, one `docs:`.
-- Doc-only update → one `docs:` commit.
+**Update `PROJECT_KNOWLEDGE_BASE.md` in the same commit as any code change that affects behaviour or workflow.** Documentation that lags behind code becomes untrustworthy.
 
 ---
 
 ## 14. Glossary for the Python-curious
 
-- **venv (virtual environment)**: a private folder of Python libraries just for this project, so it doesn't conflict with other projects or with system Python.
-- **`pip`**: Python's package installer. `pip install X` adds library X to the active venv.
-- **`requirements.txt`**: a list of libraries this project needs, so anyone (including future-you) can recreate the venv with one command.
-- **GraphQL**: the query language Fireflies' API uses. You don't need to learn it — the queries are already written in `fetch_meetings.py`.
+- **venv (virtual environment)**: a private folder of Python libraries just for this project.
+- **`pip`**: Python's package installer.
+- **`requirements.txt`**: a list of libraries this project needs.
+- **GraphQL**: the query language Fireflies' API uses.
 - **Idempotent**: a script that's safe to run multiple times — running it twice gives the same result as running it once.
-- **`.env`**: convention for a file holding secrets (API keys, passwords) that gets loaded as environment variables and is never committed to source control.
+- **`.env`**: convention for a file holding secrets, loaded as environment variables and never committed.
